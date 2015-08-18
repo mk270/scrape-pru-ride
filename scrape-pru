@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+
+# scrape-pru-ride, a scraper for a cycling event result page, by Martin Keegan
+#
+# Copyright (C) 2014 Martin Keegan
+#
+# This programme is free software; you may redistribute and/or modify
+# it under the terms of the GNU Affero General Public Licence as published by
+# the Free Software Foundation, either version 3 of said Licence, or
+# (at your option) any later version.
+
+import sys
+import lxml.html
+import requests
+import time
+import unicodecsv
+
+
+YEAR = 2015
+URL_BASE = ('http://results.prudentialridelondon.co.uk/%d/' +
+            '?page=%d&event=I&num_results=100&pid=list&search%%5Bsex%%5D=W')
+
+def urls():
+    for page_num in xrange(1, 41):
+        url = URL_BASE % (YEAR, page_num)
+        yield url
+
+header_sent = False
+
+def result_frags(url):
+    global header_sent
+
+    first = True
+    root = lxml.html.parse(url)
+    for tr in root.iter('tr'):
+        if first:
+            first = False
+            if header_sent:
+                continue
+            header_sent = True
+
+        tds = [ td for td in tr.iterchildren() ]
+        data = map(lambda td : td.text_content(), tds)
+        data.pop() # discard last item, which seems to fust unused
+        yield tuple(data)
+
+def run():
+    w = unicodecsv.writer(sys.stdout)
+
+    for url in urls():
+        for text in result_frags(url):
+            w.writerow(text)
+        time.sleep(1)
+
+if __name__ == '__main__':
+    run()
